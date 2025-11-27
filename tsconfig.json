@@ -11,6 +11,12 @@
         "outDir": "./dist",
         "rootDir": "./",
         "baseUrl": "./",
+        "paths": {
+            "@/*": ["./src/*"],
+            "@generated/*": ["./generated/*"],
+            "@lib/*": ["./src/lib/*"],
+            "@modules/*": ["./src/modules/*"]
+        },
         "types": ["node"],
         "incremental": true,
         "skipLibCheck": true,
