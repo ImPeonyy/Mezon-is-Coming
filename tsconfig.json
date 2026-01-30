@@ -12,10 +12,7 @@
         "rootDir": "./",
         "baseUrl": "./",
         "paths": {
-            "@/*": ["./src/*"],
-            "@generated/*": ["./generated/*"],
-            "@lib/*": ["./src/lib/*"],
-            "@modules/*": ["./src/modules/*"]
+            "@/*": ["src/*"]
         },
         "types": ["node"],
         "incremental": true,
