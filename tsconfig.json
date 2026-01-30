@@ -11,6 +11,9 @@
         "outDir": "./dist",
         "rootDir": "./",
         "baseUrl": "./",
+        "paths": {
+            "@/*": ["src/*"]
+        },
         "types": ["node"],
         "incremental": true,
         "skipLibCheck": true,
