@@ -8,7 +8,7 @@ export class UsersService {
 
     async getUser(userId: string) {
         return await this.prisma.user.findUnique({
-            where: { id: userId },
+            where: { id: Number(userId) },
         });
     }
 
@@ -20,14 +20,14 @@ export class UsersService {
 
     async updateUser(userId: string, user: Prisma.UserUpdateInput) {
         return await this.prisma.user.update({
-            where: { id: userId },
+            where: { id: Number(userId) },
             data: user,
         });
     }
 
     async deleteUser(userId: string) {
         return await this.prisma.user.delete({
-            where: { id: userId },
+            where: { id: Number(userId) },
         });
     }
 }
