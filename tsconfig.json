@@ -12,7 +12,8 @@
         "rootDir": "./",
         "baseUrl": "./",
         "paths": {
-            "@/*": ["src/*"]
+            "@/*": ["src/*"],
+            "@generated/*": ["generated/*"]
         },
         "types": ["node"],
         "incremental": true,

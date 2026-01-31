@@ -20,7 +20,9 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
+    "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
+    "mezon-sdk": "^2.8.39",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1"
   },
