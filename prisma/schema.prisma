@@ -20,7 +20,7 @@ model User {
   coin                                  Int                                   @default(0)
   mezon_token_balance                   Int                                   @default(0)
   total_mezon_token                     Int                                   @default(0)
-  invite_link                           String                                @unique
+  invite_code                           String                                @unique
   avatar                                String                                @default("https://res.cloudinary.com/do2rk0jz8/image/upload/v1757571181/download_ygjzey.jpg")
 
   created_at                            DateTime                              @default(now())

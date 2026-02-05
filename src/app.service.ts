@@ -1,22 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { MezonClient } from 'mezon-sdk';
+import { ListenersService } from '@bots/listeners/listeners.service';
+import { MezonClientService } from '@/lib/mezon-client/mezon-client.service';
 
 @Injectable()
 export class AppService {
+    constructor(
+        private readonly listenersService: ListenersService,
+        private readonly mezonClientService: MezonClientService,
+    ) {}
+
     async onModuleInit() {
-        this.botLogin();
-    }
-
-    async botLogin() {
-        const client = new MezonClient({
-            token: process.env.MEZON_BOT_TOKEN as string,
-            botId: process.env.MEZON_BOT_ID as string,
-        });
-
-        await client.login().then(() => {
-            console.log('Bot Started!');
-        }).catch((error) => {
-            console.error('Error Bot Logged in', error);
-        });
+        this.mezonClientService.onModuleInit();
+        this.listenersService.onModuleInit();
     }
 }
