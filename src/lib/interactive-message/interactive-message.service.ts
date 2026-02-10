@@ -4,43 +4,43 @@ import { getTextMessage } from '@/utils';
 
 @Injectable()
 export class InteractiveMessageService {
-    private activeMessages: Map<string, InteractiveMessage[]> = new Map();
+    private activeMessages: Map<number, InteractiveMessage[]> = new Map();
 
-    public getUserMessages(userId: string): InteractiveMessage[] {
+    public getUserMessages(userId: number): InteractiveMessage[] {
         return this.activeMessages.get(userId) || [];
     }
 
-    public has(userId: string, type?: string): boolean {
+    public has(userId: number, type?: string): boolean {
         const list = this.getUserMessages(userId);
         return type ? list.some((m) => m.type === type) : list.length > 0;
     }
 
-    public get(mezonId: string, type: string): InteractiveMessage | undefined {
-        return this.activeMessages.get(mezonId)?.find((m) => m.type === type);
+    public get(userId: number, type: string): InteractiveMessage | undefined {
+        return this.activeMessages.get(userId)?.find((m) => m.type === type);
     }
 
     public async register(msg: InteractiveMessage) {
-        const duplicate = this.has(msg.mezonId, msg.type);
+        const duplicate = this.has(msg.userId, msg.type);
         if (duplicate) {
-            await this.forceClose(msg.mezonId, msg.type, '🌸 Chúc bạn chơi vui vẻ!');
+            await this.forceClose(msg.userId, msg.type, '🌸 Chúc bạn chơi vui vẻ!');
         }
 
-        this.activeMessages.set(msg.mezonId, [msg]);
+        this.activeMessages.set(msg.userId, [msg]);
     }
 
-    public async refreshExpireTimer(mezonId: string, type: string, duration: number = 3 * 60 * 1000) {
-        const session = this.get(mezonId, type);
+    public async refreshExpireTimer(userId: number, type: string, duration: number = 3 * 60 * 1000) {
+        const session = this.get(userId, type);
         if (!session) return;
 
         clearTimeout(session.expireTimer);
 
         session.expireTimer = setTimeout(() => {
-            this.forceClose(mezonId, type, '🌸 Chúc bạn chơi vui vẻ!');
+            this.forceClose(userId, type, '🌸 Chúc bạn chơi vui vẻ!');
         }, duration);
     }
 
-    public async forceClose(mezonId: string, type?: string, reason = '') {
-        const list = this.getUserMessages(mezonId);
+    public async forceClose(userId: number, type?: string, reason = '') {
+        const list = this.getUserMessages(userId);
         if (list.length === 0) return false;
 
         const targets = type ? list.filter((m) => m.type === type) : list;
@@ -58,8 +58,8 @@ export class InteractiveMessageService {
         }
 
         const remaining = type ? list.filter((m) => m.type !== type) : [];
-        if (remaining.length > 0) this.activeMessages.set(mezonId, remaining);
-        else this.activeMessages.delete(mezonId);
+        if (remaining.length > 0) this.activeMessages.set(userId, remaining);
+        else this.activeMessages.delete(userId);
         return true;
     }
 

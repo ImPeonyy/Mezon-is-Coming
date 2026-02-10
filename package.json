@@ -23,6 +23,7 @@
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "async-mutex": "^0.5.0",
+    "ioredis": "^5.9.2",
     "mezon-sdk": "^2.8.41",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1"

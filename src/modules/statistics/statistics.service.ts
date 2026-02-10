@@ -17,4 +17,12 @@ export class StatisticsService {
             },
         });
     }
+
+    async getStatistic(prisma: Prisma.TransactionClient, where: Prisma.StatisticWhereUniqueInput): Promise<Statistic> {
+        return await prisma.statistic.findUnique({ where });
+    }
+
+    async updateStatistic(prisma: Prisma.TransactionClient, where: Prisma.StatisticWhereUniqueInput, data: Prisma.StatisticUpdateInput) {
+        return await prisma.statistic.update({ where, data });
+    }
 }

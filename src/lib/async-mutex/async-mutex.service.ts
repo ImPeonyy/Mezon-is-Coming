@@ -6,8 +6,8 @@ import { Mutex } from 'async-mutex';
 export class AsyncMutexService {
     private locks: Map<string, Mutex> = new Map();
 
-    private getKey({ mezonId, type }: AsyncMutexMsg): string {
-        return `${type}-${mezonId}`;
+    private getKey({ userId, type }: AsyncMutexMsg): string {
+        return `${type}-${userId}`;
     }
 
     private getMutex(key: string): Mutex {
@@ -17,14 +17,14 @@ export class AsyncMutexService {
         return this.locks.get(key)!;
     }
 
-    isLocked({ mezonId, type }: AsyncMutexMsg): boolean {
-        const key = this.getKey({ mezonId, type });
+    isLocked({ userId, type }: AsyncMutexMsg): boolean {
+        const key = this.getKey({ userId, type });
         const mutex = this.locks.get(key);
         return mutex ? mutex.isLocked() : false;
     }
 
-    async runExclusive<T>({ mezonId, type }: AsyncMutexMsg, fn: () => Promise<T>): Promise<T> {
-        const key = this.getKey({ mezonId, type });
+    async runExclusive<T>({ userId, type }: AsyncMutexMsg, fn: () => Promise<T>): Promise<T> {
+        const key = this.getKey({ userId, type });
         const mutex = this.getMutex(key);
 
         return await mutex.runExclusive(async () => {

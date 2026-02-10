@@ -26,10 +26,7 @@ export const IMAGE_TO_SPIN_TYPE = new Map<string, string>([
     ['1.png', SPIN_ITEM_TYPE.COIN],
     ['2.png', SPIN_ITEM_TYPE.COIN_BAG],
     ['3.png', SPIN_ITEM_TYPE.ENERGY],
-    ['4.png', SPIN_ITEM_TYPE.COIN_BAG],
+    ['4.png', SPIN_ITEM_TYPE.SHIELD],
     ['5.png', SPIN_ITEM_TYPE.ATTACK],
-    ['6.png', SPIN_ITEM_TYPE.SHIELD],
-    ['7.png', SPIN_ITEM_TYPE.ENERGY],
-    ['8.png', SPIN_ITEM_TYPE.RAID],
-    ['9.png', SPIN_ITEM_TYPE.COIN],
+    ['6.png', SPIN_ITEM_TYPE.RAID],
 ]);

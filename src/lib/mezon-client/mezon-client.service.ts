@@ -45,24 +45,20 @@ export class MezonClientService implements OnModuleInit {
         }
     }
 
-    async replyMessage(channelId: string, messageId: string, messageContent: ChannelMessageContent): Promise<Message> {
+    async replyMessage(channelId: string, messageId: string, messageContent: ChannelMessageContent) {
         try {
             const channel = await this.client.channels.fetch(channelId);
             const messageFetched = await channel.messages.fetch(messageId);
 
-            await messageFetched.reply(messageContent);
-
-            return messageFetched;
+            return await messageFetched.reply(messageContent);
         } catch (error) {
             console.error('❌ Lỗi khi trả lời tin nhắn:', error);
         }
     }
 
-    async updateMessage(message: Message, messageContent: ChannelMessageContent): Promise<Message> {
+    async updateMessage(message: Message, messageContent: ChannelMessageContent) {
         try {
-            await message.update(messageContent);
-
-            return message;
+            return await message.update(messageContent);
         } catch (error) {
             console.error('❌ Lỗi khi cập nhật tin nhắn:', error);
         }
@@ -72,7 +68,6 @@ export class MezonClientService implements OnModuleInit {
         let userFetched: MezonUser;
         try {
             userFetched = await this.client.users.fetch(mezonId);
-            console.log('🌸 Gửi tin nhắn DM cho user:', messageContent);
             await userFetched.sendDM(messageContent);
         } catch (error) {
             console.error('❌ Lỗi khi gửi tin nhắn DM cho user:', userFetched.username, '| Mezon:', error);
@@ -80,7 +75,6 @@ export class MezonClientService implements OnModuleInit {
     }
 
     async handleTokenSend(event: TokenSendEvent) {
-        console.log('🌸 Xử lý giao dịch token:', event);
         try {
             const { sender_id, amount, sender_name } = event;
             await this.prisma.$transaction(async (tx) => {

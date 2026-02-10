@@ -1,5 +1,6 @@
 import { ChannelMessageContent, IInteractiveMessageProps } from 'mezon-sdk';
 import { LOADING_EMOJI_ID } from '@/constants';
+import { getRandomPastelHexColor } from '@/utils';
 
 export const getTextMessage = (text: string): ChannelMessageContent => {
     return {
@@ -21,6 +22,18 @@ export const getLoadingMessage = (): ChannelMessageContent => {
                 emojiid: LOADING_EMOJI_ID,
                 s: 0,
                 e: 1,
+            },
+        ],
+    };
+};
+
+export const getEmbedLoadingMessage = (title: string): ChannelMessageContent => {
+    return {
+        embed: [
+            {
+                color: getRandomPastelHexColor(),
+                title: title,
+                description: '🌸 Chờ xíu nha... 🌸',
             },
         ],
     };

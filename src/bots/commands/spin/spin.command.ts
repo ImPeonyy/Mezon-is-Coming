@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { BotCommand, CommandContext } from '../command.interface';
 import { MezonClientService } from '@/lib/mezon-client/mezon-client.service';
-import { getRandomPastelHexColor } from '@/utils';
+import { getEmbedLoadingMessage, getRandomPastelHexColor, getTextMessage } from '@/utils';
 import { UsersService } from '@/modules/users/users.service';
 import { MiscService } from '@/modules/misc/misc.service';
 import { IMAGE_TO_SPIN_TYPE, MessageButtonClickedEvent, SPIN_ITEM_REWARD, SPIN_ITEM_TYPE } from '@/constants';
@@ -17,6 +17,9 @@ import {
 import { VillagesService } from '@/modules/villages/villages.service';
 import { PrismaService } from '@/lib/prisma/prisma.service';
 import { SpinsService } from '@/modules/spins/spins.service';
+import { Spin, User } from '@generated/prisma/client';
+import { BuildingsService } from '@/modules/buildings/buildings.service';
+import { StatisticsService } from '@/modules/statistics/statistics.service';
 
 @Injectable()
 export class SpinCommand implements BotCommand {
@@ -32,6 +35,8 @@ export class SpinCommand implements BotCommand {
         private readonly usersService: UsersService,
         private readonly villagesService: VillagesService,
         private readonly spinsService: SpinsService,
+        private readonly buildingsService: BuildingsService,
+        private readonly statisticsService: StatisticsService,
     ) {}
 
     spin = (): string[][] => {
@@ -46,6 +51,19 @@ export class SpinCommand implements BotCommand {
         }
 
         return results;
+    };
+
+    getInitSpinResult = (): string[][] => {
+        const initResults: string[][] = [];
+        const randomNumber = Math.floor(Math.random() * 9) + 1;
+
+        const spinImages = Array.from(IMAGE_TO_SPIN_TYPE.keys());
+        for (let i = 0; i < 3; i++) {
+            const result = [...spinImages, spinImages[randomNumber]];
+            initResults.push(result);
+        }
+
+        return initResults;
     };
 
     getSpinButton = (balance: number): IMessageActionRow => {
@@ -96,19 +114,31 @@ export class SpinCommand implements BotCommand {
         }));
 
         return {
-            components: [spinX1Button, ...tierButtons, cancelButton],
+            components: [balance > 0 && spinX1Button, ...tierButtons, cancelButton],
         };
     };
 
-    getSpinMessage = (
-        spinImageUrl: string,
-        spinPositionUrl: string,
-        results: string[][],
-        balance: number,
-    ): ChannelMessageContent => {
+    getSpinMessage = ({
+        results,
+        balance,
+        repeat,
+        duration,
+        isLoading = false,
+        notiMessage = '',
+    }: {
+        results: string[][];
+        balance: number;
+        repeat: number;
+        duration: number;
+        isLoading?: boolean;
+        notiMessage?: string;
+    }): ChannelMessageContent => {
+        const { spinImageUrl, spinPositionUrl } = this.miscService.getSpinImageResource();
+
         const spinMessage = {
             color: getRandomPastelHexColor(),
             title: '🎰 Spin Slots 🎰',
+            description: `Bạn đang có ${balance} năng lượng!`,
             fields: [
                 {
                     name: '',
@@ -120,23 +150,36 @@ export class SpinCommand implements BotCommand {
                             url_image: spinImageUrl,
                             url_position: spinPositionUrl,
                             pool: results,
-                            repeat: 3,
-                            duration: 1,
+                            repeat: repeat,
+                            duration: duration,
                         },
                     },
+                },
+                {
+                    name: `${balance > 0 || notiMessage ? notiMessage : '🌸 Bạn đã hết năng lượng! 🌸'}`,
+                    value: '',
                 },
             ],
         };
 
         return {
             embed: [spinMessage],
-            components: [this.getSpinButton(balance)],
+            components: isLoading ? [] : [this.getSpinButton(balance)],
         };
     };
 
-    getSelectTargetMessage = (type: 'attack' | 'raid'): ChannelMessageContent => {
+    getSelectTargetMessage = (
+        type: 'attack' | 'raid',
+        targetUsers: User[],
+        spinAmount: number,
+    ): ChannelMessageContent => {
+        const targetUserOptions = targetUsers.map((user) => ({
+            label: user.username,
+            value: user.id.toString(),
+        }));
+
         const selectTargetButton: ButtonComponent = {
-            id: `${type}-select-target`,
+            id: `select-target-${type}-${spinAmount}`,
             type: EMessageComponentType.BUTTON,
             component: {
                 label: 'Tiếp tục',
@@ -155,19 +198,10 @@ export class SpinCommand implements BotCommand {
                     name: `Chọn người bạn muốn ${type === 'attack' ? 'tấn công' : 'trộm'}:`,
                     value: '',
                     inputs: {
-                        id: `${type}-target`,
+                        id: `target`,
                         type: EMessageComponentType.SELECT,
                         component: {
-                            options: [
-                                {
-                                    label: 'Người 1',
-                                    value: '1',
-                                },
-                                {
-                                    label: 'Người 2',
-                                    value: '2',
-                                },
-                            ],
+                            options: targetUserOptions,
                         },
                     },
                 },
@@ -176,101 +210,17 @@ export class SpinCommand implements BotCommand {
 
         return {
             embed: [selectTargetMessage],
-            components: [selectTargetButton],
-        };
-    };
-
-    getAttackMessage = (): ChannelMessageContent => {
-        const attackButton: ButtonComponent = {
-            id: 'attack',
-            type: EMessageComponentType.BUTTON,
-            component: {
-                label: 'Tấn công',
-                style: EButtonMessageStyle.PRIMARY,
-            },
-        };
-        const attackMessage = {
-            color: getRandomPastelHexColor(),
-            title: 'Bạn đã nhận được 1 lượt tấn công!',
-            description: 'Chọn công trình bạn muốn tấn công!\n Để trống để tấn công ngẫu nhiên!',
-            fields: [
+            components: [
                 {
-                    name: 'Tower: 1/5',
-                    value: '',
-                    inputs: {
-                        id: 'attack-tower',
-                        type: EMessageComponentType.RADIO,
-                        component: {
-                            label: 'Tower',
-                            value: 'tower',
-                            style: EButtonMessageStyle.PRIMARY,
-                        },
-                    },
-                },
-                {
-                    name: 'Farm: 2/5',
-                    value: '',
-                    inputs: {
-                        id: 'attack-farm',
-                        type: EMessageComponentType.RADIO,
-                        component: {
-                            label: 'Farm',
-                            value: 'farm',
-                            style: EButtonMessageStyle.PRIMARY,
-                        },
-                    },
-                },
-                {
-                    name: 'Pet Statue: 3/5',
-                    value: '',
-                    inputs: {
-                        id: 'attack-pet-statue',
-                        type: EMessageComponentType.RADIO,
-                        component: {
-                            label: 'Pet Statue',
-                            value: 'pet-statue',
-                            style: EButtonMessageStyle.PRIMARY,
-                        },
-                    },
-                },
-                {
-                    name: 'Statue: 4/5',
-                    value: '',
-                    inputs: {
-                        id: 'attack-statue',
-                        type: EMessageComponentType.RADIO,
-                        component: {
-                            label: 'Statue',
-                            value: 'statue',
-                            style: EButtonMessageStyle.PRIMARY,
-                        },
-                    },
-                },
-                {
-                    name: 'Vehicle: 5/5',
-                    value: '',
-                    inputs: {
-                        id: 'attack-vehicle',
-                        type: EMessageComponentType.RADIO,
-                        component: {
-                            label: 'Vehicle',
-                            value: 'vehicle',
-                            style: EButtonMessageStyle.PRIMARY,
-                        },
-                    },
+                    components: [selectTargetButton],
                 },
             ],
-        };
-
-        return {
-            embed: [attackMessage],
-            components: [attackButton],
         };
     };
 
     getSpinItems = (results: string[][]): string[] => {
         return results.map((reel) => {
-            const lastImage = reel[reel.length - 1];
+            const lastImage = reel[5];
 
             return IMAGE_TO_SPIN_TYPE.get(lastImage);
         });
@@ -348,93 +298,482 @@ export class SpinCommand implements BotCommand {
     async execute(ctx: CommandContext) {
         const { repliedMessage, entryUser } = ctx;
         try {
-            const { spinImageUrl, spinPositionUrl } = this.miscService.getSpinImageResource();
+            this.mcService.updateMessage(
+                repliedMessage,
+                this.getSpinMessage({
+                    results: this.getInitSpinResult(),
+                    balance: entryUser.spin.spin_balance,
+                    repeat: 1,
+                    duration: 0.1,
+                    isLoading: false,
+                    notiMessage: '',
+                }),
+            );
 
             const expireTimer = setTimeout(() => {
-                this.imService.forceClose(entryUser.mezon_id, this.name, '🌸 Chúc bạn chơi vui vẻ!');
+                this.imService.forceClose(entryUser.id, this.name, '🌸 Chúc bạn chơi vui vẻ!');
             }, 3 * 60 * 1000);
 
-            this.imService.register({
-                mezonId: entryUser.mezon_id,
+            await this.imService.register({
+                userId: entryUser.id,
                 message: repliedMessage,
-                expireTimer: expireTimer,
+                expireTimer,
                 type: this.name,
             });
 
             this.mcService.getClient().onMessageButtonClicked(async (mbcEvent: MessageButtonClickedEvent) => {
-                console.log(mbcEvent);
-                if (mbcEvent.button_id === 'spin-cancel') {
-                    this.imService.forceClose(entryUser.mezon_id, this.name, '🌸 Chúc bạn chơi vui vẻ!');
-                    return;
-                }
-                const spinAmount = parseInt(mbcEvent.button_id.split('-')[1]);
-                console.log('spinAmount: ', spinAmount);
-
-                const spinResults = this.spin();
-
-                await this.mcService.updateMessage(
-                    repliedMessage,
-                    this.getSpinMessage(spinImageUrl, spinPositionUrl, spinResults, entryUser.spin.spin_balance),
-                );
-
-                const spinReward = this.getSpinReward(this.getSpinItems(spinResults), entryUser.village.level);
-
-                if (spinReward?.type === SPIN_ITEM_REWARD.ATTACK) {
-                    await this.mcService.updateMessage(repliedMessage, this.getSelectTargetMessage('attack'));
-                }
-
-                if (spinReward?.type === SPIN_ITEM_REWARD.RAID) {
-                    await this.mcService.updateMessage(repliedMessage, this.getSelectTargetMessage('raid'));
-                }
-
-                if (spinReward?.type === SPIN_ITEM_REWARD.SHIELD) {
-                    const maxShield = 3;
-                    let remainingShield = 0;
-                    const totalShield = spinReward.amount * spinAmount;
-
-                    if (totalShield + entryUser.village.shield > maxShield) {
-                        remainingShield = totalShield + entryUser.village.shield - maxShield;
+                if (
+                    mbcEvent.channel_id === repliedMessage.channel.id &&
+                    mbcEvent.message_id === repliedMessage.id &&
+                    mbcEvent.user_id === entryUser.mezon_id
+                ) {
+                    if (mbcEvent.button_id === 'spin-cancel') {
+                        this.imService.forceClose(entryUser.id, this.name, '🌸 Chúc bạn chơi vui vẻ!');
+                        return;
                     }
 
-                    const spinCost = spinAmount - remainingShield;
+                    if (this.amService.isLocked({ userId: entryUser.id, type: this.name })) {
+                        return;
+                    }
 
-                    await this.prisma.$transaction(async (tx) => {
-                        this.villagesService.updateVillage(
-                            tx,
-                            { id: entryUser.village.id },
-                            { shield: { increment: totalShield - remainingShield } },
-                        );
+                    await this.amService.runExclusive({ userId: entryUser.id, type: this.name }, async () => {
+                        if (mbcEvent.button_id.startsWith('spin-x')) {
+                            const spinAmount = parseInt(mbcEvent.button_id.split('spin-x')[1]);
+                            const spinResults = this.spin();
 
-                        if (spinCost > 0) {
-                            this.spinsService.updateSpin(
-                                tx,
-                                { id: entryUser.spin.id },
-                                { spin_balance: { decrement: spinCost } },
+                            await this.mcService.updateMessage(
+                                repliedMessage,
+                                getEmbedLoadingMessage('🎰 Spin Slots 🎰'),
+                            );
+
+                            await this.miscService.waitForTimeout(1000);
+
+                            const spinReward = this.getSpinReward(
+                                this.getSpinItems(spinResults),
+                                entryUser.village.level,
+                            );
+
+                            if (spinReward?.type === SPIN_ITEM_REWARD.ATTACK) {
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    this.getSpinMessage({
+                                        results: spinResults,
+                                        balance: entryUser.spin.spin_balance,
+                                        repeat: 2,
+                                        duration: 0.5,
+                                        isLoading: true,
+                                        notiMessage: '🌸 Bạn đã nhận được 1 lượt tấn công! 🌸',
+                                    }),
+                                );
+
+                                const targetUsers = await this.usersService.getTargetUser(entryUser.id);
+
+                                await this.miscService.waitForTimeout(2500);
+
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    this.getSelectTargetMessage('attack', targetUsers, spinAmount),
+                                );
+                            }
+
+                            if (spinReward?.type === SPIN_ITEM_REWARD.RAID) {
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    this.getSpinMessage({
+                                        results: spinResults,
+                                        balance: entryUser.spin.spin_balance,
+                                        repeat: 2,
+                                        duration: 0.5,
+                                        isLoading: true,
+                                        notiMessage: '🌸 Bạn đã nhận được 1 lượt trộm! 🌸',
+                                    }),
+                                );
+
+                                const targetUsers = await this.usersService.getTargetUser(entryUser.id);
+
+                                await this.miscService.waitForTimeout(2500);
+
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    this.getSelectTargetMessage('raid', targetUsers, spinAmount),
+                                );
+                            }
+
+                            if (spinReward?.type === SPIN_ITEM_REWARD.SHIELD) {
+                                const maxShield = 3;
+                                let remainingShield = 0;
+                                let spinUpdated: Spin;
+
+                                const totalShield = spinReward.amount * spinAmount;
+
+                                if (totalShield + entryUser.village.shield > maxShield) {
+                                    remainingShield = totalShield + entryUser.village.shield - maxShield;
+                                }
+
+                                const spinCost = spinAmount - remainingShield;
+
+                                await this.prisma.$transaction(async (tx) => {
+                                    await this.villagesService.updateVillage(
+                                        tx,
+                                        { id: entryUser.village.id },
+                                        { shield: { increment: totalShield - remainingShield } },
+                                    );
+
+                                    if (spinCost > 0) {
+                                        spinUpdated = await this.spinsService.updateSpin(
+                                            tx,
+                                            { id: entryUser.spin.id },
+                                            { spin_balance: { decrement: spinCost }, last_spin_at: new Date() },
+                                        );
+
+                                        await this.statisticsService.updateStatistic(
+                                            tx,
+                                            { user_id: entryUser.id },
+                                            { total_spined: { increment: spinCost },
+                                            spin_win_count: { increment: spinCost }, 
+                                        }
+                                        );
+                                    }
+                                });
+
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    this.getSpinMessage({
+                                        results: spinResults,
+                                        balance: spinUpdated.spin_balance,
+                                        repeat: 2,
+                                        duration: 0.5,
+                                        isLoading: false,
+                                        notiMessage: `🌸 Bạn đã nhận được ${totalShield} lượt bảo vệ! 🌸\n Bạn được hoàn trả ${remainingShield} năng lượng!`,
+                                    }),
+                                );
+                            }
+
+                            if (spinReward?.type === SPIN_ITEM_REWARD.ENERGY) {
+                                const totalEnergy = spinReward.amount * spinAmount;
+                                let spinUpdated: Spin;
+
+                                await this.prisma.$transaction(async (tx) => {
+                                spinUpdated = await this.spinsService.updateSpin(
+                                    tx,
+                                    { id: entryUser.spin.id },
+                                    { spin_balance: { increment: totalEnergy }, last_spin_at: new Date() },
+                                );
+
+                                await this.statisticsService.updateStatistic(
+                                            tx,
+                                            { user_id: entryUser.id },
+                                            { total_spined: { increment: spinAmount },
+                                            spin_win_count: { increment: spinAmount }, 
+                                        }
+                                );
+                                });
+
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    this.getSpinMessage({
+                                        results: spinResults,
+                                        balance: spinUpdated.spin_balance,
+                                        repeat: 2,
+                                        duration: 0.5,
+                                        isLoading: false,
+                                        notiMessage: `🌸 Bạn đã nhận được ${totalEnergy} năng lượng! 🌸`,
+                                    }),
+                                );
+                            }
+
+                            if (spinReward?.type === SPIN_ITEM_REWARD.COIN) {
+                                const totalCoin = spinReward.amount * spinAmount;
+
+                                let spinUpdated: Spin;
+
+                                await this.prisma.$transaction(async (tx) => {
+                                    await this.usersService.updateUser(
+                                        tx,
+                                        { id: entryUser.id },
+                                        { coin: { increment: spinReward.amount * spinAmount } },
+                                    );
+
+                                    spinUpdated = await this.spinsService.updateSpin(
+                                        tx,
+                                        { id: entryUser.spin.id },
+                                        { spin_balance: { decrement: spinAmount }, last_spin_at: new Date() },
+                                    );
+
+                                    await this.statisticsService.updateStatistic(
+                                        tx,
+                                        { user_id: entryUser.id },
+                                        { total_spined: { increment: spinAmount },
+                                        spin_win_count: { increment: spinAmount }, 
+                                        total_coin_from_spin: { increment: spinReward.amount * spinAmount },
+                                    }
+                                    );
+                                });
+
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    this.getSpinMessage({
+                                        results: spinResults,
+                                        balance: spinUpdated.spin_balance,
+                                        repeat: 2,
+                                        duration: 0.36,
+                                        isLoading: false,
+                                        notiMessage: `🌸 Bạn đã nhận được ${totalCoin} coin! 🌸`,
+                                    }),
+                                );
+                            }
+
+                            if (spinReward === null) {
+                                let spinUpdated: Spin;
+                                await this.prisma.$transaction(async (tx) => {
+                                spinUpdated = await this.spinsService.updateSpin(
+                                    tx,
+                                    { id: entryUser.spin.id },
+                                    { spin_balance: { decrement: spinAmount }, last_spin_at: new Date() },
+                                );
+
+                                await this.statisticsService.updateStatistic(
+                                    tx,
+                                    { user_id: entryUser.id },
+                                    { total_spined: { increment: spinAmount },
+                                }
+                                );
+                                });
+
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    this.getSpinMessage({
+                                        results: spinResults,
+                                        balance: spinUpdated.spin_balance,
+                                        repeat: 2,
+                                        duration: 0.36,
+                                        isLoading: false,
+                                        notiMessage: '🌸 Chúc bạn may mắn lần sau! 🌸',
+                                    }),
+                                );
+                            }
+                        }
+
+                        if (mbcEvent.button_id.startsWith('select-target-attack')) {
+                            const target = JSON.parse(mbcEvent.extra_data);
+                            const targetId = target['target'];
+                            const spinAmount = parseInt(mbcEvent.button_id.split('select-target-attack-')[1]);
+
+                            const targetUser = await this.usersService.getUserWithVillage({
+                                id: parseInt(targetId),
+                            });
+
+                            if (targetUser.village.shield > 0) {
+                                await this.prisma.$transaction(async (tx) => {
+                                    await this.villagesService.updateVillage(
+                                        tx,
+                                        { id: targetUser.village.id },
+                                        { shield: { decrement: 1 } },
+                                    );
+
+                                    await this.usersService.updateUser(
+                                        tx,
+                                        { id: targetUser.id },
+                                        { coin: { increment: 10000 * spinAmount } },
+                                    );
+
+                                    await this.statisticsService.updateStatistic(
+                                        tx,
+                                        { user_id: entryUser.id },
+                                        { total_spined: { increment: spinAmount },
+                                        spin_win_count: { increment: spinAmount },
+                                        attack_count: { increment: 1 },
+                                        shield_break_count: { increment: 1 },
+                                    }
+                                    );
+
+                                    await this.statisticsService.updateStatistic(
+                                        tx,
+                                        { user_id: targetUser.id },
+                                        { attacked_count: { increment: 1 },
+                                        shield_blocked_count: { increment: 1 },
+                                    }
+                                    );
+                                });
+
+                                const spinUpdated = await this.spinsService.updateSpin(
+                                    this.prisma,
+                                    { id: entryUser.spin.id },
+                                    { spin_balance: { decrement: spinAmount }, last_spin_at: new Date() },
+                                );
+
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    getTextMessage('🌸 Đối phương đã bảo vệ thành công! 🌸'),
+                                );
+                                await this.miscService.waitForTimeout(1000);
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    this.getSpinMessage({
+                                        results: this.getInitSpinResult(),
+                                        balance: spinUpdated.spin_balance,
+                                        repeat: 1,
+                                        duration: 0.1,
+                                        isLoading: false,
+                                        notiMessage: '',
+                                    }),
+                                );
+                            } else {
+                                await this.prisma.$transaction(async (tx) => {
+                                    const targetBuilding = await tx.building.findFirst({
+                                        where: {
+                                            village_id: targetUser.village.id,
+                                            level: {
+                                                gt: 1,
+                                            },
+                                        },
+                                        select: {
+                                            type: true,
+                                        },
+                                    });
+
+                                    if (!targetBuilding) {
+                                        return;
+                                    }
+
+                                    const downgraded = await this.buildingsService.downgradeBuilding(
+                                        tx,
+                                        targetUser.village.id,
+                                        targetBuilding.type,
+                                    );
+
+                                    if (!downgraded) {
+                                        return;
+                                    }
+
+                                    await this.usersService.updateUser(
+                                        tx,
+                                        { id: targetUser.id },
+                                        { coin: { increment: 20000 * spinAmount } },
+                                    );
+
+                                    await this.spinsService.updateSpin(
+                                        this.prisma,
+                                        { id: entryUser.spin.id },
+                                        { spin_balance: { decrement: spinAmount }, last_spin_at: new Date() },
+                                    );
+
+                                    await this.statisticsService.updateStatistic(
+                                        tx,
+                                        { user_id: entryUser.id },
+                                        { total_spined: { increment: spinAmount },
+                                        spin_win_count: { increment: spinAmount },
+                                        attack_count: { increment: 1 },
+                                        attack_success_count: { increment: 1 },
+                                    }
+                                    );
+
+                                    await this.statisticsService.updateStatistic(
+                                        tx,
+                                        { user_id: targetUser.id },
+                                        { attacked_count: { increment: 1 },
+                                    }
+                                    );
+                                });
+
+                                await this.imService.forceClose(
+                                    entryUser.id,
+                                    this.name,
+                                    `🌸 Bạn đã tấn công ${targetUser.username} thành công! 🌸`,
+                                );
+                            }
+
+                            await this.mcService.senDMMessage(
+                                targetUser.mezon_id,
+                                getTextMessage(`🌸 Bạn đã bị tấn công bởi ${entryUser.username}! 🌸`),
                             );
                         }
-                    });
-                }
 
-                if (spinReward?.type === SPIN_ITEM_REWARD.ENERGY) {
-                    this.spinsService.updateSpin(
-                        this.prisma,
-                        { id: entryUser.spin.id },
-                        { spin_balance: { increment: spinReward.amount * spinAmount } },
-                    );
-                }
+                        if (mbcEvent.button_id.startsWith('select-target-raid')) {
+                            const target = JSON.parse(mbcEvent.extra_data);
+                            const targetId = target['target'];
+                            const spinAmount = parseInt(mbcEvent.button_id.split('select-target-raid-')[1]);
 
-                if (spinReward?.type === SPIN_ITEM_REWARD.COIN) {
-                    await this.prisma.$transaction(async (tx) => {
-                        this.usersService.updateUser(
-                            tx,
-                            { id: entryUser.id },
-                            { coin: { increment: spinReward.amount * spinAmount } },
-                        );
-                        this.spinsService.updateSpin(
-                            tx,
-                            { id: entryUser.spin.id },
-                            { spin_balance: { decrement: spinAmount } },
-                        );
+                            const targetUser = await this.usersService.getUserWithVillage({
+                                id: parseInt(targetId),
+                            });
+
+                            const percentage = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
+                            const rawStolen = Math.round((targetUser.coin * percentage) / 100);
+
+                            if (rawStolen <= 0) {
+                                await this.mcService.updateMessage(
+                                    repliedMessage,
+                                    getTextMessage(`🌸 ${targetUser.username} hiện không có coin để trộm! 🌸`),
+                                );
+                                return;
+                            }
+
+                            const stolenAmount = rawStolen * spinAmount;
+
+                            await this.prisma.$transaction(async (tx) => {
+                                await this.usersService.updateUser(
+                                    tx,
+                                    { id: targetUser.id },
+                                    {
+                                        coin: {
+                                            decrement: Math.min(stolenAmount, targetUser.coin),
+                                        },
+                                    },
+                                );
+
+                                await this.usersService.updateUser(
+                                    tx,
+                                    { id: entryUser.id },
+                                    {
+                                        coin: {
+                                            increment: stolenAmount,
+                                        },
+                                    },
+                                );
+
+                                await this.spinsService.updateSpin(
+                                    tx,
+                                    { id: entryUser.spin.id },
+                                    {
+                                        spin_balance: { decrement: spinAmount },
+                                        last_spin_at: new Date(),
+                                    },
+                                );
+
+                                const statistic = await this.statisticsService.getStatistic(tx, { user_id: entryUser.id });
+                                const bestRaid = Math.max(statistic.best_raid, stolenAmount);
+
+                                await this.statisticsService.updateStatistic(
+                                    tx,
+                                    { user_id: entryUser.id },
+                                    { total_spined: { increment: spinAmount },
+                                    spin_win_count: { increment: spinAmount },
+                                    raid_count: { increment: 1 },
+                                    total_coin_from_raid: { increment: stolenAmount },
+                                    best_raid: { set: bestRaid },
+                                });
+
+                                await this.statisticsService.updateStatistic(
+                                    tx,
+                                    { user_id: targetUser.id },
+                                    { raided_count: { increment: 1 },
+                                });
+                            });
+
+                            await this.imService.forceClose(
+                                entryUser.id,
+                                this.name,
+                                `🌸 Bạn đã trộm được ${stolenAmount} coin từ ${targetUser.username} (${percentage}%)! 🌸`,
+                            );
+
+                            await this.mcService.senDMMessage(
+                                targetUser.mezon_id,
+                                getTextMessage(
+                                    `🌸 Bạn đã bị ${entryUser.username} trộm mất ${stolenAmount} coin (${percentage}%)! 🌸`,
+                                ),
+                            );
+                        }
                     });
                 }
             });

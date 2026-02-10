@@ -55,7 +55,7 @@ export class RegisCommand implements BotCommand {
             return null;
         }
 
-        const inviteUser = await this.usersService.getUserwithSpin({ invite_code: inviteCode });
+        const inviteUser = await this.usersService.getUserWithSpin({ invite_code: inviteCode });
         if (!inviteUser) {
             await this.mezonClientService.updateMessage(repliedMessage, {
                 t: '❌ Mã mời không tồn tại!',

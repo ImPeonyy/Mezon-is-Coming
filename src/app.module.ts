@@ -7,6 +7,7 @@ import { PrismaModule } from '@/lib/prisma/prisma.module';
 import { MiscModule } from '@/modules/misc/misc.module';
 import { InteractiveMessageModule } from '@/lib/interactive-message/interactive-message.module';
 import { AsyncMutexModule } from '@/lib/async-mutex/async-mutex.module';
+import { RedisModule } from '@/lib/redis/redis.module';
 @Module({
     imports: [
         ConfigModule.forRoot({
@@ -14,6 +15,7 @@ import { AsyncMutexModule } from '@/lib/async-mutex/async-mutex.module';
         }),
         MezonClientModule,
         PrismaModule,
+        RedisModule,
         MiscModule,
         InteractiveMessageModule,
         AsyncMutexModule,

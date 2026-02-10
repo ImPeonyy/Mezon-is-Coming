@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/lib/prisma/prisma.service';
-import { Prisma, User, Spin, Village, PrismaClient } from '@generated/prisma/client';
+import { Prisma, User, Spin, Village, PrismaClient, Building } from '@generated/prisma/client';
 import { generateInviteCode } from '@/utils';
 import { DEFAULT_AVATAR } from '@/constants';
 
@@ -85,18 +85,37 @@ export class UsersService {
         });
     }
 
-    async getUserwithSpin(where: Prisma.UserWhereUniqueInput): Promise<User & { spin: Spin | null }> {
-        const userWithSpin = await this.prisma.user.findUnique({
+    async getUserWithSpin(where: Prisma.UserWhereUniqueInput): Promise<User & { spin: Spin | null }> {
+        return await this.prisma.user.findUnique({
             where,
             include: {
                 spin: true,
             },
         });
+    }
 
-        if (!userWithSpin) {
-            return null;
-        }
+    async getUserWithVillage(
+        where: Prisma.UserWhereUniqueInput,
+    ): Promise<(User & { village: Village & { buildings: Building[] } }) | null> {
+        return await this.prisma.user.findUnique({
+            where,
+            include: {
+                village: {
+                    include: {
+                        buildings: true,
+                    },
+                },
+            },
+        });
+    }
 
-        return userWithSpin;
+    async getTargetUser(id: number): Promise<User[] | null> {
+        return await this.prisma.user.findMany({
+            where: {
+                NOT: {
+                    id,
+                },
+            },
+        });
     }
 }

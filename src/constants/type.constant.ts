@@ -49,20 +49,21 @@ export type TokenSendEvent = {
 };
 
 export type MessageButtonClickedEvent = {
+    message_id: string;
+    channel_id: string;
+    button_id: string;
     sender_id: string;
     user_id: string;
-    message_id: string;
-    button_id: string;
     extra_data: string;
 };
 export interface InteractiveMessage {
-    mezonId: string;
+    userId: number;
     message: Message;
     expireTimer: NodeJS.Timeout | null;
     type: string;
 }
 
 export interface AsyncMutexMsg {
-    mezonId: string;
+    userId: number;
     type: string;
 }
