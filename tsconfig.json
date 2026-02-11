@@ -13,7 +13,9 @@
         "baseUrl": "./",
         "paths": {
             "@/*": ["src/*"],
-            "@generated/*": ["generated/*"]
+            "@bots/*": ["src/bots/*"],
+            "@generated/*": ["generated/*"],
+            "@utils/*": ["src/utils/*"]
         },
         "types": ["node"],
         "incremental": true,

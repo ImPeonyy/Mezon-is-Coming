@@ -20,7 +20,7 @@ model User {
   coin                                  Int                                   @default(0)
   mezon_token_balance                   Int                                   @default(0)
   total_mezon_token                     Int                                   @default(0)
-  invite_link                           String                                @unique
+  invite_code                           String                                @unique
   avatar                                String                                @default("https://res.cloudinary.com/do2rk0jz8/image/upload/v1757571181/download_ygjzey.jpg")
 
   created_at                            DateTime                              @default(now())
@@ -36,9 +36,7 @@ model Spin {
   user_id                               Int                                   @unique
   spin_balance                          Int                                   @default(50)
   spin_limit                            Int                                   @default(50)
-  total_spined                          Int                                   @default(0)
-  spin_win_count                        Int                                   @default(0)
-  total_coin_from_spin                  Int                                   @default(0)
+  last_spin_at                          DateTime                              @default(now())
 
   created_at                            DateTime                              @default(now())
   updated_at                            DateTime                              @default(now()) @updatedAt
@@ -99,6 +97,10 @@ model Statistic {
   perfect_raid_count                    Int                                   @default(0)
   total_coin_from_raid                  Int                                   @default(0)
   best_raid                             Int                                   @default(0)
+
+  total_spined                          Int                                   @default(0)
+  spin_win_count                        Int                                   @default(0)
+  total_coin_from_spin                  Int                                   @default(0)
 
   created_at                            DateTime                              @default(now())
   updated_at                            DateTime                              @default(now()) @updatedAt
