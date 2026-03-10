@@ -10,6 +10,7 @@ import { Spin, User, Village } from '@generated/prisma/client';
 import { RegisCommand } from './regis/regis.command';
 import { SpinCommand } from './spin/spin.command';
 import { InviteCodeCommand } from './invite-code/invite-code.command';
+import { ProfileCommand } from './profile/profile.command';
 
 @Injectable()
 export class CommandService {
@@ -22,10 +23,12 @@ export class CommandService {
         private readonly regisCommand: RegisCommand,
         private readonly spinCommand: SpinCommand,
         private readonly inviteCodeCommand: InviteCodeCommand,
+        private readonly profileCommand: ProfileCommand,
     ) {
         this.register(this.regisCommand);
         this.register(this.spinCommand);
         this.register(this.inviteCodeCommand);
+        this.register(this.profileCommand);
     }
 
     register(command: BotCommand) {

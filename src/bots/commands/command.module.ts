@@ -10,9 +10,10 @@ import { StatisticsModule } from '@/modules/statistics/statistics.module';
 import { RegisCommand } from './regis/regis.command';
 import { SpinCommand } from './spin/spin.command';
 import { InviteCodeCommand } from './invite-code/invite-code.command';
+import { ProfileCommand } from './profile/profile.command';
 @Module({
     imports: [UsersModule, VillagesModule, BuildingsModule, StatisticsModule, SpinsModule],
-    providers: [CommandService, RegisCommand, SpinCommand, InviteCodeCommand],
+    providers: [CommandService, RegisCommand, SpinCommand, InviteCodeCommand, ProfileCommand],
     exports: [CommandService],
 })
 export class CommandModule {}

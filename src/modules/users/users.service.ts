@@ -118,4 +118,16 @@ export class UsersService {
             },
         });
     }
+
+    async getProfileUser(where: Prisma.UserWhereUniqueInput): Promise<(User & { village: Village & { buildings: Building[] }; spin: Spin }) | null> {
+        return await this.prisma.user.findUnique({
+            where,
+            include: {
+                village: {
+                    include: { buildings: true },
+                },
+                spin: true,
+            },
+        });
+    }
 }
